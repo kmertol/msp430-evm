@@ -13,9 +13,9 @@ volatile u16 next_tick;
 // callback and to also ensure thread safety
 #define TIMER_MAX_COUNT (SYS_TIMER_MAX_COUNT + 1)
 typedef struct timer_instance {
-	u16     counter;
-	void*   call;
-	int     id;
+	u16        counter;
+	tcb_noid_t call;
+	int        id;
 } timer_instance_t;
 
 static timer_instance_t timer[TIMER_MAX_COUNT] = {{0}};
@@ -74,7 +74,7 @@ void systimer_register_fail_callback(pfn_t callback)
 	fail_callback = callback ? callback : default_fail_callback;
 }
 
-bool _systimer_new(u16 timeout_ms, void *call, int id)
+bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id)
 {
 	uint i;
 
@@ -87,7 +87,7 @@ bool _systimer_new(u16 timeout_ms, void *call, int id)
 			timer_lock = i;
 			if (0 == timer[i].counter) {
 				timer[i].counter = timeout_ms;
-				timer[i].call = call;
+				timer[i].call = callback;
 				timer[i].id = id;
 				timer_lock = -1;
 				atomic_update_next_tick(timeout_ms + sys_tick);
@@ -101,13 +101,14 @@ bool _systimer_new(u16 timeout_ms, void *call, int id)
 	return False;
 }
 
-bool _systimer_renew(u16 timeout_ms, void *call, int id)
+bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 {
 	uint i;
 
 	for (i = 0; i < TIMER_MAX_COUNT; i++) {
-		// Find the timer, and also it should be running not deprecated
-		if (call == timer[i].call && id == timer[i].id && 0 != timer[i].counter) {
+		// Find the timer, and it should be running also, not deprecated
+		if (callback == timer[i].call && id == timer[i].id
+		    && 0 != timer[i].counter) {
 			timer_lock = i;
 			timer[i].counter = timeout_ms;
 			timer_lock = -1;
@@ -119,7 +120,7 @@ bool _systimer_renew(u16 timeout_ms, void *call, int id)
 
 	// if not found register new
 	if (timeout_ms) {
-		return _systimer_new(timeout_ms, call, id);
+		return _systimer_new(timeout_ms, callback, id);
 	} else {
 		return True;
 	}
@@ -143,7 +144,7 @@ static void systimer_update_tick(u16 tick_count)
 			counter -= tick_count;
 			if ((s16)counter <= 0) {
 				if (-1 == timer[i].id) {
-					((tcb_noid_t)(timer[i].call))();
+					timer[i].call();
 					counter = 0;
 				} else {
 					u16 latency = -counter;

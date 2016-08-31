@@ -57,9 +57,9 @@ static inline void event_lpm_set(event_lpm_t lpm)
 /* If the cpu is already sleeping it needs to wake up first to change
  * into another lpm. This should be used to force(speed up) the change */
 #define event_lpm_set_isr(lpm) do \
-{	event_lpm_set(lpm); \
-	__bic_SR_register_on_exit(LPM4_bits); \
-} while (0)
+	{	event_lpm_set(lpm); \
+		__bic_SR_register_on_exit(LPM4_bits); \
+	} while (0)
 
 static inline void event_set(event_id_t id)
 {

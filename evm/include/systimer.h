@@ -43,8 +43,8 @@ void systimer_register_fail_callback(pfn_t callback);
 typedef u16 (*tcb_id_t)(int id, u16 latency);
 typedef void (*tcb_noid_t)(void);
 
-bool _systimer_new(u16 timeout_ms, void *callback, int id);
-bool _systimer_renew(u16 timeout_ms, void *callback, int id);
+bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id);
+bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
 
 /* - These functions will return False if all timers are in use.
  * - What makes each timer instance unique is their function pointer
@@ -63,7 +63,7 @@ static inline bool systimer_new(u16 timeout_ms, tcb_noid_t callback)
 
 static inline bool systimer_new_task(u16 timeout_ms, tcb_id_t callback, int id)
 {
-    return _systimer_new(timeout_ms, callback, id);
+    return _systimer_new(timeout_ms, (tcb_noid_t)callback, id);
 }
 
 /* Will change the timeout value of the timer that has the same function
@@ -80,7 +80,7 @@ static inline bool systimer_renew(u16 timeout_ms, tcb_noid_t callback)
 
 static inline bool systimer_renew_task(u16 timeout_ms, tcb_id_t callback, int id)
 {
-    return _systimer_renew(timeout_ms, callback, id);
+    return _systimer_renew(timeout_ms, (tcb_noid_t)callback, id);
 }
 
 /* Passing 0 as timeout to the renew function will also delete the timer,
@@ -92,7 +92,7 @@ static inline bool systimer_delete(tcb_noid_t callback)
 
 static inline bool systimer_delete_task(tcb_id_t callback, int id)
 {
-    return _systimer_renew(0, callback, id);
+    return _systimer_renew(0, (tcb_noid_t)callback, id);
 }
 
 /****************************************************************************/
