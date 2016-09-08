@@ -12,7 +12,7 @@ static pfn_t event_array[EVENT_COUNT] = {0};
 
 /* Assuming most events that are defined are registered, it is faster to call
  * the function pointers directly rather than controlling everytime if is not
- * equal to NUlL */
+ * equal to Null */
 static void no_event(void) {}
 static void init_empty_events(void)
 {
@@ -42,7 +42,8 @@ static void _event_machine(void)
 				if (current & bit) {
 					event_list &= ~bit;
 					event_array[i]();
-					if (!event_list)
+					current = event_list;
+					if (!current)
 						goto sleep;
 				}
 				bit <<= 1;

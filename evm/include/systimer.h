@@ -7,16 +7,17 @@
 #include "types.h"
 
 /**************************   MODIFY   **************************************/
-/* Maximum allowed amount of simultaneously running timers, inreasing this
+/* Maximum allowed amount of simultaneously running timers, increasing this
  * value will also increase the size of the statically allocated array */
 #define SYS_TIMER_MAX_COUNT 4
 /* Increase the tick for more low power, but less precise timekeeping. If you
  * actually look at the implementation of the timer ISR, there isn't much
- * overhead (excluding the wake-up from sleep time), in most cases it can be
- * preferable to keep this low */
+ * overhead (excluding the wake-up from sleep delay). In most cases it can be
+ * preferable to keep this low, only caveat is that you might miss ticks if
+ * the interrupts remain disabled more than the tick time(e.g. flash erase).*/
 #define SYS_TICK_MS 1
 /* If defined will stop the timer when not in use. It is better to use this
- * mode if you are not using the other CCRs of the same timer */
+ * mode if you are not using the other CCRs of the timer that is in use */
 #define SYS_TIMER_STOP_MODE
 /****************************************************************************/
 
@@ -44,18 +45,25 @@ typedef u16 (*tcb_id_t)(int id, u16 latency);
 typedef void (*tcb_noid_t)(void);
 
 bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id);
+bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
 
-/* - These functions will return False if all timers are in use.
- * - What makes each timer instance unique is their function pointer
- *   and their id
- * - Ids supplied when creating a timer task should not be negative
- *   (reserved for internal use)
+/* - These functions will return False if they fail to create a new
+ *   timer instance
+ * - What makes each timer instance unique is their function pointer and
+ *   their id. So it is possible to register the same callback with
+ *   different ids, and still be able to use systimer_renew on them.
+ * - Using systimer_new with the same callback, will create a different timer
+ *   instance each time, if this is not your intention, use systimer_renew
+ * - Ids supplied when creating a timer task should not be negative,
+ *   these are reserved for internal use
  * - The task callbacks should return the next timeout value, returning
  *   0 will end(delete) the task
+ * - Only systimer_new_isr and systimer_new_task_isr can be called from an isr,
+ *   systimer_renew and systimer_delete can not
  */
 
-/* Create a new timer instance, these are thread safe */
+/* Creates a new timer instance, use the isr version when calling this from an isr */
 static inline bool systimer_new(u16 timeout_ms, tcb_noid_t callback)
 {
     return _systimer_new(timeout_ms, callback, -1);
@@ -66,12 +74,22 @@ static inline bool systimer_new_task(u16 timeout_ms, tcb_id_t callback, int id)
     return _systimer_new(timeout_ms, (tcb_noid_t)callback, id);
 }
 
+/* The isr versions assume that the interrupts are disabled */
+static inline bool systimer_new_isr(u16 timeout_ms, tcb_noid_t callback)
+{
+    return _systimer_new_isr(timeout_ms, callback, -1);
+}
+
+static inline bool systimer_new_task_isr(u16 timeout_ms, tcb_id_t callback, int id)
+{
+    return _systimer_new_isr(timeout_ms, (tcb_noid_t)callback, id);
+}
+
 /* Will change the timeout value of the timer that has the same function
- * pointer and if supplied the same id, if not found it will create a new
- * instance calling systimer_new automatically.
+ * pointer and if supplied the same id, if it can not found one, it will
+ * create a new timer instance by calling systimer_new automatically.
  *
- * Warning: Not thread safe, make sure that if different threads are calling
- * renew for the same timer instance, they should do those at different times
+ * Warning: These are not thread safe, don't call from an isr
  */
 static inline bool systimer_renew(u16 timeout_ms, tcb_noid_t callback)
 {
@@ -83,16 +101,15 @@ static inline bool systimer_renew_task(u16 timeout_ms, tcb_id_t callback, int id
     return _systimer_renew(timeout_ms, (tcb_noid_t)callback, id);
 }
 
-/* Passing 0 as timeout to the renew function will also delete the timer,
- * if you prefer to do it that way */
-static inline bool systimer_delete(tcb_noid_t callback)
+/* This is syntactic sugar for renew with timeout 0 */
+static inline void systimer_delete(tcb_noid_t callback)
 {
-    return _systimer_renew(0, callback, -1);
+    _systimer_renew(0, callback, -1);
 }
 
-static inline bool systimer_delete_task(tcb_id_t callback, int id)
+static inline void systimer_delete_task(tcb_id_t callback, int id)
 {
-    return _systimer_renew(0, (tcb_noid_t)callback, id);
+    _systimer_renew(0, (tcb_noid_t)callback, id);
 }
 
 /****************************************************************************/

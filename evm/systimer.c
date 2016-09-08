@@ -6,8 +6,8 @@
 #include "include/debug.h"
 #include <msp430.h>
 
-volatile u16 sys_tick;
-volatile u16 next_tick;
+volatile u16 sys_tick = 0;
+volatile u16 next_tick = 0;
 
 // We need +1 timer space for the calls to systimer_new inside a timer
 // callback and to also ensure thread safety
@@ -38,34 +38,34 @@ static inline void timer_start(void) {}
 static inline void timer_stop(void) {}
 #endif
 
-static inline void atomic_update_next_tick(u16 current_tick)
+// Don't use with interrupts enabled
+static inline void update_next_tick(u16 current_tick)
 {
 	assert(current_tick != 0);
 
-	_uninterrupted(
-		if (current_tick < next_tick) {
-	    	next_tick = current_tick;
-	    } else if (next_tick == 0) {
-	    	next_tick = current_tick;
-	    	timer_start();
-	    }
-	);
+	if (current_tick < next_tick) {
+    	next_tick = current_tick;
+    } else if (next_tick == 0) {
+    	next_tick = current_tick;
+    	timer_start();
+    }
+}
+
+static inline void critical_update_next_tick(u16 current_tick)
+{
+	_uninterrupted(update_next_tick(current_tick));
 }
 
 void systimer_init(void)
 {
-	sys_tick = 0;
-	next_tick = 0;
-
 	event_register(EVENT_SYS_TICK, systimer_sys_tick);
 
-	TA1CTL = TACLR;
+	TA1CTL = TACLR | TASSEL_1;
 	TA1CCTL0 |= CCIE;
 	TA1CCR0 = (32 * SYS_TICK_MS) - 1;
-	#ifdef SYS_TIMER_STOP_MODE
-	TA1CTL = TASSEL_1;
-	#else
-	TA1CTL = TASSEL_1 | MC_1;
+
+	#ifndef SYS_TIMER_STOP_MODE
+	TA1CTL |= MC_1;
 	#endif
 }
 
@@ -76,44 +76,65 @@ void systimer_register_fail_callback(pfn_t callback)
 
 bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id)
 {
-	uint i;
+	int i;
 
 	// No timeout, no registry
 	if (timeout_ms == 0)
 		return True;
 
 	for (i = 0; i < TIMER_MAX_COUNT; i++) {
-		if (i != timer_lock) {
-			timer_lock = i;
-			if (0 == timer[i].counter) {
-				timer[i].counter = timeout_ms;
-				timer[i].call = callback;
-				timer[i].id = id;
-				timer_lock = -1;
-				atomic_update_next_tick(timeout_ms + sys_tick);
-				return True;
-			}
+		timer_lock = i;
+		if (0 == timer[i].counter) {
+			timer[i].counter = timeout_ms;
+			timer[i].call = callback;
+			timer[i].id = id;
+			timer_lock = -1;
+			critical_update_next_tick(timeout_ms + sys_tick);
+			return True;
 		}
 	}
-	// too many timers registered at once, maybe increase max count
+
 	timer_lock = -1;
+	// too many timers registered at once, maybe increase max count
+	fail_callback();
+	return False;
+}
+
+// Assumes interrupts are disabled
+bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id)
+{
+	int i;
+
+	if (timeout_ms == 0)
+		return True;
+
+	for (i = 0; i < TIMER_MAX_COUNT; i++) {
+		if (0 == timer[i].counter && i != timer_lock) {
+			timer[i].counter = timeout_ms;
+			timer[i].call = callback;
+			timer[i].id = id;
+			update_next_tick(timeout_ms + sys_tick);
+			return True;
+		}
+	}
+
 	fail_callback();
 	return False;
 }
 
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 {
-	uint i;
+	int i;
 
 	for (i = 0; i < TIMER_MAX_COUNT; i++) {
-		// Find the timer, and it should be running also, not deprecated
+		// The timer should be running also, not deprecated
 		if (callback == timer[i].call && id == timer[i].id
 		    && 0 != timer[i].counter) {
-			timer_lock = i;
+			// Since systimer_new does not touch a timer with counter != 0,
+			// we are safe here
 			timer[i].counter = timeout_ms;
-			timer_lock = -1;
 			if (timeout_ms)
-				atomic_update_next_tick(timeout_ms + sys_tick);
+				critical_update_next_tick(timeout_ms + sys_tick);
 			return True;
 		}
 	}
@@ -128,7 +149,7 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 
 static void systimer_update_tick(u16 tick_count)
 {
-	uint i;
+	int i;
 	u16 min_tick;
 	u16 counter;
 
@@ -170,11 +191,11 @@ static void systimer_update_tick(u16 tick_count)
 			}
 		);
 	} else {
-		atomic_update_next_tick(min_tick);
+		critical_update_next_tick(min_tick);
 	}
 }
 
-void systimer_sys_tick(void)
+static void systimer_sys_tick(void)
 {
 	u16 tick = sys_tick;
 
