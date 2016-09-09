@@ -131,6 +131,52 @@ bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id)
 	return False;
 }
 
+#if 0
+/* This is just for reference. It can both be used insted of new and new_isr.
+ * But I deciced to use different implementations to make a clear distinction
+ * about what can be used in an isr and what can not. I also wanted to get rid
+ * of the short interrupt disabling sections and make things work a bit faster
+ * for the isr version. */
+bool _systimer_new_thread_safe(u16 timeout_ms, tcb_noid_t callback, int id)
+{
+	int i;
+	int lock_save;
+	uint state_save;
+
+	if (timeout_ms == 0)
+		return True;
+
+	for (i = 0; i < TIMER_MAX_COUNT; i++) {
+		// A critical section, we are trying to lock the timer for update
+		state_save = __get_interrupt_state();
+		__disable_interrupt();
+		if (0 == timer[i].counter) {
+			lock_save = timer_lock;
+			if (i != lock_save) {
+				timer_lock = i;
+				__set_interrupt_state(state_save);
+			} else {
+				__set_interrupt_state(state_save);
+				continue;
+			}
+		} else {
+			__set_interrupt_state(state_save);
+			continue;
+		}
+
+		timer[i].counter = timeout_ms;
+		timer[i].call = callback;
+		timer[i].id = id;
+		timer_lock = lock_save;
+		critical_update_next_tick(timeout_ms + sys_tick);
+		return True;
+	}
+
+	fail_callback();
+	return False;
+}
+#endif
+
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 {
 	int i;
