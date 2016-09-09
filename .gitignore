@@ -1,3 +1,15 @@
+# User
+.ccsproject
+.cproject
+.launches/
+.settings/
+.suo
+.project
+.tags
+.tags_sorted_by_file
+Debug/
+targetConfigs/
+
 # Object files
 *.o
 *.ko
