@@ -12,11 +12,11 @@ Here we will be defining two more events in the `user_events.h` file:
 ----------------
 
 As events are defined as binary semaphores, there is no way to catch if an event
-has triggered multiple times before its callback its called. An serial communication
-willl be a good example (probably you have done this before lots of times).
+has triggered multiple times before its handler its called. A serial communication
+will be a good example (probably you have done this before lots of times).
 
 We will still be using events, but we just need a queue big enough that is able to hold
-all the received chars until the event callback.
+all the received chars until the event handler call.
 
 The ISR UART RX procedure will be like this:
 

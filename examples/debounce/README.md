@@ -30,7 +30,7 @@ In the example we have two inputs pins and the debouncing values are set as:
 
 **Considerations:**
 
-* For each added input pin, you need one extra timer, keeping in mind that all pins
+* For each added input pin, you need one extra timer, considering that all pins
 can be debouncing at the same time. So keep this in mind when setting the
 `SYS_TIMER_MAX_COUNT` variable.
 

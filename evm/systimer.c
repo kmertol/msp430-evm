@@ -194,7 +194,7 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 		}
 	}
 
-	// if not found register new
+	// if not found, register new
 	if (timeout_ms) {
 		return _systimer_new(timeout_ms, callback, id);
 	} else {
@@ -202,15 +202,14 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 	}
 }
 
-static void systimer_update_tick(u16 tick_count)
+static inline void systimer_update_tick(u16 tick_count)
 {
 	int i;
 	u16 min_tick;
 	u16 counter;
 
 	min_tick = UINT16_MAX;
-	// to prevent further sys_tick events, and to know
-	// if a ISR registers a new timer during update
+	// to know if a new timer is registered during update
 	next_tick = UINT16_MAX;
 
 	for (i = 0; i < TIMER_MAX_COUNT; i++) {
@@ -237,7 +236,7 @@ static void systimer_update_tick(u16 tick_count)
 
 	timer_lock = -1;
 
-	if (min_tick == UINT16_MAX && next_tick == UINT16_MAX) {
+	if (min_tick == UINT16_MAX) {
 		_uninterrupted(
 			if (next_tick == UINT16_MAX) {
 				next_tick = 0;
@@ -254,12 +253,13 @@ static void systimer_sys_tick(void)
 {
 	u16 tick = sys_tick;
 
-	do {
-		sys_tick -= tick;
-		systimer_update_tick(tick);
-		event_clear(EVENT_SYS_TICK);
-		tick = next_tick;
-	} while (tick && sys_tick >= tick);
+	sys_tick -= tick;
+	systimer_update_tick(tick);
+	// the below part is to clear tick events, occured during update
+	event_clear(EVENT_SYS_TICK);
+	tick = next_tick;
+	if (tick && sys_tick >= tick)
+		event_set(EVENT_SYS_TICK);
 }
 
 #pragma vector = TIMER1_A0_VECTOR

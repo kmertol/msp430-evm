@@ -8,19 +8,19 @@
 
 volatile uint event_lpm = EVENT_LPM0;
 volatile event_reg_t event_list = 0;
-static pfn_t event_array[EVENT_COUNT] = {0};
+static pfn_t event_handlers[EVENT_COUNT] = {0};
 
 /* Assuming most events that are defined are registered, it is faster to call
  * the function pointers directly rather than controlling everytime if is not
  * equal to Null */
-static void no_event(void) {}
-static void init_empty_events(void)
+static void no_handler(void) {}
+static void init_empty_handlers(void)
 {
 	uint i;
 
 	for (i = 0; i < EVENT_COUNT; i++) {
-		if (Null == event_array[i])
-			event_array[i] = no_event;
+		if (Null == event_handlers[i])
+			event_handlers[i] = no_handler;
 	}
 }
 
@@ -41,7 +41,7 @@ static void _event_machine(void)
 			for (i = 0, bit = 1, current = event_list; i < EVENT_COUNT; i++) {
 				if (current & bit) {
 					event_list &= ~bit;
-					event_array[i]();
+					event_handlers[i]();
 					current = event_list;
 					if (!current)
 						goto sleep;
@@ -68,12 +68,12 @@ static void _event_machine(void)
 
 void event_machine(void)
 {
-	init_empty_events();
+	init_empty_handlers();
 	_event_machine();
 }
 
-void event_register(event_id_t id, pfn_t event_callback)
+void event_register(event_id_t id, pfn_t handler)
 {
 	assert(id < EVENT_COUNT);
-	event_array[id] = (Null == event_callback) ? no_event : event_callback;
+	event_handlers[id] = (Null == handler) ? no_handler : handler;
 }

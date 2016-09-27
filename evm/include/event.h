@@ -39,8 +39,8 @@ typedef enum user_events {
 #endif
 /******************************************************/
 
-/* Pass Null as callback to unregister */
-void event_register(event_id_t id, pfn_t event_callback);
+/* Pass Null as handler to unregister */
+void event_register(event_id_t id, pfn_t handler);
 
 /* The last function you should call from main, this will not return */
 void event_machine(void);

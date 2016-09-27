@@ -17,7 +17,7 @@
  * the interrupts remain disabled more than the tick time(e.g. flash erase).*/
 #define SYS_TICK_MS 1
 /* If defined will stop the timer when not in use. It is better to use this
- * mode if you are not using the other CCRs of the timer that is in use */
+ * mode if you are not using the same timer for other purposes */
 #define SYS_TIMER_STOP_MODE
 /****************************************************************************/
 
@@ -49,18 +49,19 @@ bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
 
 /* - These functions will return False if they fail to create a new
- *   timer instance
+ *   timer instance.
  * - What makes each timer instance unique is their function pointer and
  *   their id. So it is possible to register the same callback with
  *   different ids, and still be able to use systimer_renew on them.
  * - Using systimer_new with the same callback, will create a different timer
- *   instance each time, if this is not your intention, use systimer_renew
+ *   instance each time, if this is not your intention, use systimer_renew.
  * - Ids supplied when creating a timer task should not be negative,
- *   these are reserved for internal use
- * - The task callbacks should return the next timeout value, returning
- *   0 will end(delete) the task
+ *   these are reserved for internal use.
+ * - The task callbacks should return the next timeout value, returning 0 will
+ *   end(delete) the task. This is also the only way the tasks should change
+ *   their timeout inside the callback, they shouldn't use renew on themselves.
  * - Only systimer_new_isr and systimer_new_task_isr can be called from an isr,
- *   systimer_renew and systimer_delete can not
+ *   systimer_renew and systimer_delete can not.
  */
 
 /* Creates a new timer instance, use the isr version when calling this from an isr */
@@ -86,7 +87,7 @@ static inline bool systimer_new_task_isr(u16 timeout_ms, tcb_id_t callback, int 
 }
 
 /* Will change the timeout value of the timer that has the same function
- * pointer and if supplied the same id, if it can not found one, it will
+ * pointer and if supplied the same id, if it can not find one, it will
  * create a new timer instance by calling systimer_new automatically.
  *
  * Warning: These are not thread safe, don't call from an isr
