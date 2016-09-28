@@ -48,6 +48,7 @@ bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
 
+/***************************** READ FIRST ***********************************/
 /* - These functions will return False if they fail to create a new
  *   timer instance.
  * - What makes each timer instance unique is their function pointer and
@@ -60,9 +61,14 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
  * - The task callbacks should return the next timeout value, returning 0 will
  *   end(delete) the task. This is also the only way the tasks should change
  *   their timeout inside the callback, they shouldn't use renew on themselves.
+ * - Generalizing the last sentence above, no timer callback should use renew
+ *   on themselves. For tcb_noid_t, you should use new; for tcb_id_t, you should
+ *   change your return value.
+ * - Maximum value you should use as a timeout is 30 seconds.
  * - Only systimer_new_isr and systimer_new_task_isr can be called from an isr,
  *   systimer_renew and systimer_delete can not.
  */
+/****************************************************************************/
 
 /* Creates a new timer instance, use the isr version when calling this from an isr */
 static inline bool systimer_new(u16 timeout_ms, tcb_noid_t callback)
