@@ -213,7 +213,6 @@ static inline void systimer_update_tick(u16 tick_count)
 	next_tick = UINT16_MAX;
 
 	for (i = 0; i < TIMER_MAX_COUNT; i++) {
-		timer_lock = i;
 		counter = timer[i].counter;
 		if (0 != counter) {
 			counter -= tick_count;
@@ -233,8 +232,6 @@ static inline void systimer_update_tick(u16 tick_count)
 			timer[i].counter = counter;
 		}
 	}
-
-	timer_lock = -1;
 
 	if (min_tick == UINT16_MAX) {
 		_uninterrupted(
