@@ -2,9 +2,8 @@
 
 These examples are tested on MSP430F6725 using Code Composer Studio.
 
-You can copy and paste the files directly to your project folder.
-
-Since the event machine also needs some static configuration, I decided
-to copy and paste the whole evm folder inside the example projects, rather
-than using relative paths to the base evm folder.
+* Copy the *evm* folder in the repository root to your project directory
+* Copy the corresponding example's files to your project directory
+* If supplied: replace the `user_events.h` in the *evm/include* folder
+  with the one in the example
 
