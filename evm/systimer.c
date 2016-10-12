@@ -21,7 +21,7 @@ typedef struct timer_instance {
 static timer_instance_t timer[TIMER_MAX_COUNT] = {{0}};
 
 // This is for thread safety, -1 means unlocked, positive value means the
-// correspending timer is locked for update
+// corresponding timer is locked for update
 static volatile int timer_lock = -1;
 
 // Called when adding a timer fails because all instances are occupied
@@ -52,11 +52,11 @@ static inline void update_next_tick(u16 current_tick)
 	assert(current_tick != 0);
 
 	if (current_tick < next_tick) {
-    	next_tick = current_tick;
-    } else if (next_tick == 0) {
-    	next_tick = current_tick;
-    	timer_start();
-    }
+		next_tick = current_tick;
+	} else if (next_tick == 0) {
+		next_tick = current_tick;
+		timer_start();
+	}
 }
 
 static inline void critical_update_next_tick(u16 current_tick)
@@ -202,6 +202,18 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id)
 	}
 }
 
+bool _systimer_is_running(tcb_noid_t callback, int id)
+{
+	int i;
+
+	for (i = 0; i < TIMER_MAX_COUNT; i++) {
+		if (callback == timer[i].call && id == timer[i].id
+		    && 0 != timer[i].counter)
+			return True;
+	}
+	return False;
+}
+
 static inline void systimer_update_tick(u16 tick_count)
 {
 	int i;
@@ -252,7 +264,7 @@ static void systimer_sys_tick(void)
 
 	sys_tick -= tick;
 	systimer_update_tick(tick);
-	// the below part is to clear tick events, occured during update
+	// the below part is to clear tick events, occurred during update
 	event_clear(EVENT_SYS_TICK);
 	tick = next_tick;
 	if (tick && sys_tick >= tick)

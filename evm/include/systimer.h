@@ -47,6 +47,7 @@ typedef void (*tcb_noid_t)(void);
 bool _systimer_new(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_new_isr(u16 timeout_ms, tcb_noid_t callback, int id);
 bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
+bool _systimer_is_running(tcb_noid_t callback, int id);
 
 /***************************** READ FIRST ***********************************/
 /* - These functions will return False if they fail to create a new
@@ -64,6 +65,8 @@ bool _systimer_renew(u16 timeout_ms, tcb_noid_t callback, int id);
  * - Generalizing the last sentence above, no timer callback should use renew
  *   on themselves. For tcb_noid_t, you should use new; for tcb_id_t, you should
  *   change your return value.
+ * - Since the min tick used for calculation is also SYS_TICK_MS, the actual
+ *   time elapsed after creation till the callback can differ by +-SYS_TICK_MS.
  * - Maximum value you should use as a timeout is 30 seconds.
  * - Only systimer_new_isr and systimer_new_task_isr can be called from an isr,
  *   systimer_renew and systimer_delete can not.
@@ -117,6 +120,17 @@ static inline void systimer_delete(tcb_noid_t callback)
 static inline void systimer_delete_task(tcb_id_t callback, int id)
 {
     _systimer_renew(0, (tcb_noid_t)callback, id);
+}
+
+/* Just the know if the timer is running or not */
+static inline bool systimer_is_running(tcb_noid_t callback)
+{
+    return _systimer_is_running(callback, -1);
+}
+
+static inline bool systimer_is_running_task(tcb_id_t callback, int id)
+{
+    return _systimer_is_running((tcb_noid_t)callback, id);
 }
 
 /****************************************************************************/
