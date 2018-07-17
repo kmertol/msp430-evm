@@ -86,20 +86,20 @@ void handler_foo(void) {}
 
 void main(void)
 {
-  // if you are using the systimer module
-  systimer_init();
-  // register the event handler
-  event_register(EVENT_FOO, handler_foo);
-  // set the low power mode to LPM3
-  event_lpm_set(EVENT_LPM3);
-
-  event_machine();
+    // if you are using the systimer module
+    systimer_init();
+    // register the event handler
+    event_register(EVENT_FOO, handler_foo);
+    // set the low power mode to LPM3
+    event_lpm_set(EVENT_LPM3);
+    // give control of execution to the event machine
+    event_machine();
 }
 
 __interrupt void some_isr(void)
 {
-  // maybe do some other processing also
-  event_set_isr(EVENT_FOO);
+    // maybe do some other processing also
+    event_set_isr(EVENT_FOO);
 }
 ```
 
@@ -144,8 +144,10 @@ u16 periodic(int id, u16 latency) { return PERIOD; }
 
 void setup_all_timers(void)
 {
-  systimer_new(50, one_shot);
-  systimer_new(PERIOD, periodic);
+    // set one shot timer to a 50ms timeout
+    systimer_new(50, one_shot);
+    // supply an id number to pass to the callback function (task)
+    systimer_new_task(PERIOD, periodic, 0);
 }
 ```
 
